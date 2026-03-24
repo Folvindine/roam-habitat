@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROAM — Robotic Off-grid Autonomous Mover</title>
+  <meta name="description" content="A terrain-independent hexapod mobile habitat. No roads. No wheels. No infrastructure. Wake up in the Amazon. Walk to the mountains. Live anywhere on Earth.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0b0d;
+      --bg-secondary: #0f1114;
+      --bg-card: #141619;
+      --accent: #c8a96e;
+      --accent-dim: rgba(200, 169, 110, 0.3);
+      --accent-glow: rgba(200, 169, 110, 0.08);
+      --text-primary: #e8e4dc;
+      --text-secondary: #a09888;
+      --text-dim: #6b6358;
+      --danger: #a04040;
+      --terrain-green: #3a5a3a;
+      --terrain-blue: #2a4a6a;
+      --terrain-sand: #8a7a5a;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    /* --- NAVIGATION --- */
+    nav {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 100;
+      padding: 1.5rem 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(10, 11, 13, 0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(200, 169, 110, 0.06);
+    }
+
+    .logo {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 0.3em;
+      color: var(--accent);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2.5rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      color: var(--text-dim);
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+
+    .nav-links a:hover { color: var(--accent); }
+
+    /* --- HERO --- */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 8vw;
+      position: relative;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(200, 169, 110, 0.03) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 30%, rgba(42, 74, 106, 0.03) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .hero-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      color: var(--accent);
+      margin-bottom: 2rem;
+      opacity: 0.7;
+    }
+
+    .hero h1 {
+      font-family: 'DM Sans', sans-serif;
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 300;
+      line-height: 1.15;
+      max-width: 900px;
+      color: var(--text-primary);
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .hero-sub {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      margin-top: 2rem;
+      max-width: 600px;
+      font-weight: 300;
+    }
+
+    /* --- SECTIONS --- */
+    section {
+      padding: 8rem 8vw;
+      position: relative;
+    }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      color: var(--accent);
+      margin-bottom: 1.5rem;
+      opacity: 0.7;
+    }
+
+    .section-title {
+      font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+      font-weight: 300;
+      max-width: 700px;
+      line-height: 1.3;
+      margin-bottom: 1.5rem;
+    }
+
+    .section-body {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      max-width: 650px;
+      line-height: 1.8;
+      font-weight: 300;
+    }
+
+    /* --- PROBLEM GRID --- */
+    .problem-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+      margin-top: 4rem;
+    }
+
+    .problem-stat {
+      padding: 2rem;
+      background: var(--bg-card);
+      border-radius: 8px;
+      border: 1px solid rgba(200, 169, 110, 0.06);
+    }
+
+    .stat-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.5rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* --- VEHICLE SVG --- */
+    .vehicle-section {
+      text-align: center;
+      padding: 6rem 8vw;
+    }
+
+    .vehicle-section svg {
+      max-width: 900px;
+      width: 100%;
+      margin: 3rem auto;
+    }
+
+    /* --- SUBSYSTEM GRID --- */
+    .subsystem-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1px;
+      background: rgba(200, 169, 110, 0.06);
+      margin-top: 4rem;
+    }
+
+    .subsystem-card {
+      padding: 2.5rem;
+      background: var(--bg-primary);
+    }
+
+    .subsystem-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      margin-bottom: 0.8rem;
+    }
+
+    .subsystem-title {
+      font-size: 1.2rem;
+      font-weight: 500;
+      margin-bottom: 0.8rem;
+    }
+
+    .subsystem-desc {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    /* --- FOOTER --- */
+    footer {
+      padding: 4rem 8vw;
+      border-top: 1px solid rgba(200, 169, 110, 0.06);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    /* --- FADE IN ANIMATION --- */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* --- RESPONSIVE --- */
+    @media (max-width: 768px) {
+      nav { padding: 1rem 1.5rem; }
+      .nav-links { gap: 1.5rem; }
+      section { padding: 5rem 5vw; }
+      .problem-grid { grid-template-columns: 1fr 1fr; }
+      .subsystem-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 480px) {
+      .nav-links { display: none; }
+      .problem-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAVIGATION -->
+<nav>
+  <div class="logo">ROAM</div>
+  <ul class="nav-links">
+    <li><a href="#problem">PROBLEM</a></li>
+    <li><a href="#research">RESEARCH</a></li>
+    <li><a href="#vehicle">VEHICLE</a></li>
+    <li><a href="#subsystems">SYSTEMS</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <p class="hero-label">ROBOTIC OFF-GRID AUTONOMOUS MOVER</p>
+  <h1>Wake up in the Amazon.<br>Walk to the <em>mountains</em>.<br>Live anywhere on Earth.</h1>
+  <p class="hero-sub">A terrain-independent hexapod mobile habitat. No roads. No wheels. No infrastructure. Just six legs and the entire planet.</p>
+</section>
+
+<!-- 01 — THE PROBLEM -->
+<section class="fade-in" id="problem" style="border-top: 1px solid rgba(200,169,110,0.06);">
+  <p class="section-label">01 — THE PROBLEM</p>
+  <h2 class="section-title">Roads are a 20th century assumption.</h2>
+  <p class="section-body">
+    Global demographics are collapsing. Birth rates have fallen below replacement in most
+    developed nations. The road infrastructure built for 8 billion people won't be maintained
+    for 6 billion. We need vehicles that don't depend on roads.
+  </p>
+
+  <div class="problem-grid">
+    <div class="problem-stat">
+      <div class="stat-number">64M km</div>
+      <div class="stat-label">of paved roads worldwide, requiring constant maintenance that shrinking populations can't sustain.</div>
+    </div>
+    <div class="problem-stat">
+      <div class="stat-number">2.1</div>
+      <div class="stat-label">replacement fertility rate. Most developed nations are now below 1.5. South Korea hit 0.72 in 2023.</div>
+    </div>
+    <div class="problem-stat">
+      <div class="stat-number">71%</div>
+      <div class="stat-label">of Earth's surface is water. Of the remaining 29%, most is inaccessible by wheeled vehicles.</div>
+    </div>
+    <div class="problem-stat">
+      <div class="stat-number">400M</div>
+      <div class="stat-label">years of evolution optimized legged locomotion. Insects solved terrain-independence with six legs.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 — THE VEHICLE CONCEPT -->
+<section class="vehicle-section fade-in" id="vehicle" style="border-top: 1px solid rgba(200,169,110,0.06);">
+  <p class="section-label">02A — THE VEHICLE</p>
+  <h2 class="section-title">A walking home.</h2>
+  <p class="section-body" style="margin: 0 auto;">
+    Six hydraulic legs carrying a self-leveling habitable cabin. Solar-powered, hydrogen-backed,
+    AI-navigated. Designed for one: the solo explorer who wants total freedom.
+  </p>
+
+  <!-- Hexapod Side View SVG -->
+  <svg viewBox="0 0 900 400" fill="none" style="max-width: 900px; width: 100%; margin: 4rem auto;">
+    <!-- Ground line -->
+    <line x1="50" y1="340" x2="850" y2="340" stroke="var(--terrain-sand)" stroke-width="0.5" opacity="0.3"/>
+
+    <!-- Cabin body -->
+    <rect x="250" y="100" width="400" height="130" rx="12" fill="var(--bg-card)" stroke="var(--accent-dim)" stroke-width="1.5"/>
+    <!-- Window strip -->
+    <rect x="270" y="115" width="360" height="30" rx="4" fill="rgba(42,74,106,0.15)" stroke="var(--terrain-blue)" stroke-width="0.5"/>
+    <!-- Solar panels on top -->
+    <rect x="265" y="85" width="370" height="15" rx="3" fill="rgba(200,169,110,0.1)" stroke="var(--accent-dim)" stroke-width="0.5"/>
+
+    <!-- Leg 1 (front-left) -->
+    <line x1="300" y1="230" x2="230" y2="280" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="230" y1="280" x2="200" y2="335" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="200" cy="338" r="4" fill="var(--accent)" opacity="0.6"/>
+
+    <!-- Leg 2 (mid-left) -->
+    <line x1="400" y1="230" x2="350" y2="290" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="350" y1="290" x2="340" y2="335" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="340" cy="338" r="4" fill="var(--accent)" opacity="0.6"/>
+
+    <!-- Leg 3 (rear-left) -->
+    <line x1="500" y1="230" x2="470" y2="285" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="470" y1="285" x2="480" y2="335" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="480" cy="338" r="4" fill="var(--accent)" opacity="0.6"/>
+
+    <!-- Leg 4 (front-right, slightly behind) -->
+    <line x1="320" y1="230" x2="260" y2="275" stroke="var(--accent-dim)" stroke-width="2" stroke-linecap="round"/>
+    <line x1="260" y1="275" x2="240" y2="335" stroke="var(--accent-dim)" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="240" cy="338" r="3.5" fill="var(--accent)" opacity="0.3"/>
+
+    <!-- Leg 5 (mid-right) -->
+    <line x1="420" y1="230" x2="380" y2="285" stroke="var(--accent-dim)" stroke-width="2" stroke-linecap="round"/>
+    <line x1="380" y1="285" x2="370" y2="335" stroke="var(--accent-dim)" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="370" cy="338" r="3.5" fill="var(--accent)" opacity="0.3"/>
+
+    <!-- Leg 6 (rear-right) -->
+    <line x1="520" y1="230" x2="500" y2="280" stroke="var(--accent-dim)" stroke-width="2" stroke-linecap="round"/>
+    <line x1="500" y1="280" x2="510" y2="335" stroke="var(--accent-dim)" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="510" cy="338" r="3.5" fill="var(--accent)" opacity="0.3"/>
+
+    <!-- Labels -->
+    <text x="450" y="175" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="var(--accent)" letter-spacing="0.15em">HABITABLE CABIN</text>
+    <text x="450" y="78" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="var(--text-dim)" letter-spacing="0.1em">SOLAR ARRAY</text>
+    <text x="140" y="300" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="var(--text-dim)">18+ DOF</text>
+    <text x="450" y="370" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="var(--text-dim)" letter-spacing="0.1em">HEXAPOD CHASSIS — 6 ADAPTIVE HYDRAULIC LEGS</text>
+  </svg>
+</section>
+
+<!-- 02B — WHY HEXAPOD -->
+<section class="fade-in" id="research" style="border-top: 1px solid rgba(200,169,110,0.1);">
+  <p class="section-label">02B — ENGINEERING JUSTIFICATION</p>
+  <h2 class="section-title">Six legs isn't aesthetic. It's engineering.</h2>
+  <p class="section-body">
+    We evaluated biped, quadruped, hexapod, and octopod configurations against five
+    criteria critical for a habitable walking vehicle. Hexapod won on every metric
+    that matters for human safety in wilderness conditions.
+  </p>
+
+  <!-- COMPARISON TABLE -->
+  <div style="margin-top: 3rem; overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+      <thead>
+        <tr style="border-bottom: 1px solid rgba(200,169,110,0.2);">
+          <th style="text-align: left; padding: 1rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; letter-spacing: 0.1em;">METRIC</th>
+          <th style="text-align: center; padding: 1rem; color: var(--text-dim);">BIPED</th>
+          <th style="text-align: center; padding: 1rem; color: var(--text-dim);">QUADRUPED</th>
+          <th style="text-align: center; padding: 1rem; color: var(--accent);">HEXAPOD</th>
+          <th style="text-align: center; padding: 1rem; color: var(--text-dim);">OCTOPOD</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid rgba(200,169,110,0.06);">
+          <td style="padding: 1rem; color: var(--text-secondary);">Static Stability</td>
+          <td style="text-align: center; padding: 1rem; color: var(--danger);">Low</td>
+          <td style="text-align: center; padding: 1rem; color: var(--text-secondary);">Medium</td>
+          <td style="text-align: center; padding: 1rem; color: var(--accent); font-weight: 600;">High</td>
+          <td style="text-align: center; padding: 1rem; color: var(--text-secondary);">High</td>
+        </tr>
+        <tr style="border-bottom: 1px solid rgba(200,169,110,0.06);">
+          <td style="padding: 1rem; color: var(--text-secondary);">Walking Speed</td>
+          <td style="text-align: center; padding: 1rem; color: var(--danger);">Slow</td>
+          <td style="text-align: center; padding: 1rem; color: var(--text-secondary);">Medium</td>
+          <td style="text-align: center; padding: 1rem; color: var(--accent); font-weight: 600;">Fastest</td>
+          <td style="text-align: center; padding: 1rem; color: var(--text-secondary);">No gain</td>
+        </tr>
+        <tr style="border-bottom: 1px solid rgba(200,169,110,0.06);">
+          <td style="padding: 1rem; color: var(--text-secondary);">Fault Tolerance</td>
+          <td style="text-align: center; padding: 1rem; color: var(--danger);">None</td>
+          <td style="text-align: center; padding: 1rem; color: var(--danger);">Poor</td>
+          <td style="text-align: center; padding: 1rem; color: var(--accent); font-weight: 600;">Good</td>
+          <td style="text-align: center; padding: 1rem; color: var(--text-secondary);">Better</td>
+        </tr>
+        <tr style="border-bottom: 1px solid rgba(200,169,110,0.06);">
+          <td style="padding: 1rem; color: var(--text-secondary);">Control Complexity</td>
+          <td style="text-align: center; padding: 1rem; color: var(--danger);">Very High</td>
+          <td style="text-align: center; padding: 1rem; color: var(--accent);">Low</td>
+          <td style="text-align: center; padding: 1rem; color: var(--text-secondary);">High</td>
+          <td style="text-align: center; padding: 1rem; color: var(--danger);">Very High</td>
+        </tr>
+        <tr style="border-bottom: 1px solid rgba(200,169,110,0.06);">
+          <td style="padding: 1rem; color: var(--text-secondary);">Multi-function Legs</td>
+          <td style="text-align: center; padding: 1rem; color: var(--danger);">No</td>
+          <td style="text-align: center; padding: 1rem; color: var(--text-secondary);">Limited</td>
+          <td style="text-align: center; padding: 1rem; color: var(--accent); font-weight: 600;">Yes</td>
+          <td style="text-align: center; padding: 1rem; color: var(--text-secondary);">Overkill</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- RESEARCH CITATIONS -->
+  <div class="problem-grid fade-in" style="margin-top: 3rem;">
+    <div class="problem-stat">
+      <div class="stat-number" style="font-size: 2rem;">3-Point</div>
+      <div class="stat-label">Alternating tripod gait keeps three legs grounded at all times, forming a stable triangle. The cabin stays level. Nature tested this design on insects for 400 million years.</div>
+    </div>
+    <div class="problem-stat">
+      <div class="stat-number" style="font-size: 2rem;">Fault Safe</div>
+      <div class="stat-label">Lose a leg on a quadruped — 25% capacity gone, unstable. Lose a leg on a hexapod — switch to pentapod gait and walk home safely. When you're living in wilderness, redundancy isn't optional.</div>
+    </div>
+    <div class="problem-stat">
+      <div class="stat-number" style="font-size: 2rem;">Optimal</div>
+      <div class="stat-label">Research confirms six legs is the speed optimum for legged locomotion. More than six adds weight and complexity without increasing speed. (Alexadre et al, 1991; Frontiers in Robotics, 2024)</div>
+    </div>
+    <div class="problem-stat">
+      <div class="stat-number" style="font-size: 2rem;">Dual Use</div>
+      <div class="stat-label">Spare legs serve as manipulators — anchoring to hillsides, lifting cargo, stabilising the platform while parked on a slope. Quadrupeds need all four legs just to stand.</div>
+    </div>
+  </div>
+
+  <p class="section-body" style="margin-top: 3rem; font-style: italic; color: var(--text-dim);">
+    Sources: Frontiers in Robotics & AI (2024), ScienceDirect Mechanism Design (2022),
+    Alexadre et al (1991), IMF Working Papers on legged vehicle dynamics.
+  </p>
+</section>
+
+<!-- 02C — INTERIOR PHILOSOPHY -->
+<section class="fade-in" style="border-top: 1px solid rgba(200,169,110,0.1);">
+  <p class="section-label">02C — INTERIOR PHILOSOPHY</p>
+  <h2 class="section-title">Designed for living, not for showrooms.</h2>
+  <p class="section-body">
+    Human living creates waste, moisture, dirt, and wear. Every interior surface
+    is designed for reality: easy to clean, modular enough to replace, and
+    manufacturable with 3D printing for field repairs.
+  </p>
+
+  <div class="subsystem-grid" style="margin-top: 3rem; grid-template-columns: repeat(3, 1fr);">
+    <div class="subsystem-card">
+      <p class="subsystem-name">EASY-CLEAN</p>
+      <h3 class="subsystem-title">Zero Dead Corners</h3>
+      <p class="subsystem-desc">All interior joints are rounded — no 90-degree angles where dirt accumulates. Non-porous antimicrobial surfaces. Seamless floors with integrated drainage slopes. Snap-fit wall panels remove for deep cleaning.</p>
+    </div>
+    <div class="subsystem-card">
+      <p class="subsystem-name">3D PRINTABLE</p>
+      <h3 class="subsystem-title">Print. Replace. Continue.</h3>
+      <p class="subsystem-desc">Interior modules designed as discrete printable units with standard connection interfaces. Damaged part? Print a new one onboard or at resupply. Materials: recycled PETG, ASA, carbon-fiber reinforced nylon.</p>
+    </div>
+    <div class="subsystem-card">
+      <p class="subsystem-name">WASTE MANAGED</p>
+      <h3 class="subsystem-title">Closed Loop Living</h3>
+      <p class="subsystem-desc">Composting toilet (zero water waste). Greywater recycling with 80% recovery. Solid waste compaction and sealed storage. Organic composting feeds optional hydroponics module.</p>
+    </div>
+  </div>
+
+  <!-- FLOOR PLAN SVG -->
+  <div style="max-width: 800px; margin: 4rem auto 0;">
+    <svg viewBox="0 0 800 300" fill="none" style="width: 100%;">
+      <!-- Outer hull -->
+      <rect x="50" y="30" width="700" height="180" rx="12" fill="var(--bg-card)" stroke="var(--accent-dim)" stroke-width="1.5"/>
+
+      <!-- Section dividers -->
+      <line x1="250" y1="30" x2="250" y2="210" stroke="var(--accent-dim)" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"/>
+      <line x1="530" y1="30" x2="530" y2="210" stroke="var(--accent-dim)" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"/>
+
+      <!-- Cockpit/Work -->
+      <rect x="55" y="35" width="190" height="170" rx="6" fill="rgba(200,169,110,0.04)"/>
+      <text x="150" y="100" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="var(--accent)" letter-spacing="0.1em">COCKPIT</text>
+      <text x="150" y="115" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="9" fill="var(--text-dim)">Navigation + Work</text>
+      <rect x="80" y="130" width="80" height="30" rx="3" fill="rgba(200,169,110,0.06)" stroke="var(--accent-dim)" stroke-width="0.5"/>
+      <text x="120" y="149" text-anchor="middle" font-family="DM Sans" font-size="7" fill="var(--text-dim)">Desk</text>
+      <circle cx="120" cy="175" r="10" fill="rgba(200,169,110,0.06)" stroke="var(--accent-dim)" stroke-width="0.5"/>
+
+      <!-- Living Space -->
+      <rect x="255" y="35" width="270" height="170" rx="6" fill="rgba(42,74,106,0.06)"/>
+      <text x="390" y="100" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="var(--accent)" letter-spacing="0.1em">LIVING MODULE</text>
+      <text x="390" y="115" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="9" fill="var(--text-dim)">Convertible Bed + Lounge</text>
+      <rect x="280" y="130" width="120" height="60" rx="4" fill="rgba(42,74,106,0.08)" stroke="var(--terrain-blue)" stroke-width="0.5"/>
+      <text x="340" y="164" text-anchor="middle" font-family="DM Sans" font-size="7" fill="var(--text-dim)">Bed / Sofa</text>
+      <rect x="420" y="140" width="80" height="40" rx="3" fill="rgba(200,169,110,0.06)" stroke="var(--accent-dim)" stroke-width="0.5"/>
+      <text x="460" y="164" text-anchor="middle" font-family="DM Sans" font-size="7" fill="var(--text-dim)">Table</text>
+
+      <!-- Wet Module -->
+      <rect x="535" y="35" width="210" height="170" rx="6" fill="rgba(58,90,58,0.06)"/>
+      <text x="640" y="70" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="var(--accent)" letter-spacing="0.1em">WET MODULE</text>
+      <text x="640" y="85" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="9" fill="var(--text-dim)">Kitchen + Shower + Toilet</text>
+      <line x1="640" y1="95" x2="640" y2="205" stroke="var(--accent-dim)" stroke-width="0.5" opacity="0.3"/>
+      <rect x="545" y="100" width="90" height="50" rx="3" fill="rgba(58,90,58,0.08)" stroke="var(--terrain-green)" stroke-width="0.5"/>
+      <text x="590" y="129" text-anchor="middle" font-family="DM Sans" font-size="7" fill="var(--text-dim)">Kitchen</text>
+      <rect x="545" y="158" width="90" height="40" rx="3" fill="rgba(58,90,58,0.08)" stroke="var(--terrain-green)" stroke-width="0.5"/>
+      <text x="590" y="182" text-anchor="middle" font-family="DM Sans" font-size="7" fill="var(--text-dim)">Shower</text>
+      <rect x="650" y="100" width="85" height="98" rx="3" fill="rgba(58,90,58,0.08)" stroke="var(--terrain-green)" stroke-width="0.5"/>
+      <text x="692" y="153" text-anchor="middle" font-family="DM Sans" font-size="7" fill="var(--text-dim)">Composting</text>
+      <text x="692" y="163" text-anchor="middle" font-family="DM Sans" font-size="7" fill="var(--text-dim)">Toilet</text>
+
+      <!-- Mechanical layer label -->
+      <rect x="50" y="220" width="700" height="50" rx="8" fill="var(--bg-card)" stroke="var(--accent-dim)" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"/>
+      <text x="400" y="250" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="var(--text-dim)" letter-spacing="0.15em">MECHANICAL DECK — Water Tanks · H2 Cells · Batteries · Waste Storage · Tools</text>
+
+      <!-- Dimensions -->
+      <text x="400" y="290" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="var(--text-dim)">Target: 12-15 m3 interior · 2000-2500 kg cabin · 1.9m ceiling · Self-leveling to 30 degrees</text>
+    </svg>
+  </div>
+</section>
+
+<!-- 03 — SUBSYSTEMS -->
+<section class="fade-in" id="subsystems" style="border-top: 1px solid rgba(200,169,110,0.06);">
+  <p class="section-label">03 — CORE SUBSYSTEMS</p>
+  <h2 class="section-title">Every system earns its weight.</h2>
+  <p class="section-body">
+    At 2-3 tons total mass, every kilogram matters. Each subsystem is designed for
+    maximum autonomy with minimum weight. Field-repairable. Redundant where it counts.
+  </p>
+
+  <div class="subsystem-grid">
+    <div class="subsystem-card">
+      <p class="subsystem-name">LOCOMOTION</p>
+      <h3 class="subsystem-title">Adaptive Hexapod Gait</h3>
+      <p class="subsystem-desc">Six hydraulic legs with 3 DOF each. Alternating tripod gait for speed, wave gait for stability. Terrain-adaptive foot placement via depth cameras and force feedback.</p>
+    </div>
+    <div class="subsystem-card">
+      <p class="subsystem-name">NAVIGATION</p>
+      <h3 class="subsystem-title">Terrain-Aware AI</h3>
+      <p class="subsystem-desc">LiDAR + stereo cameras + satellite terrain data. Neural terrain classification for surface type, slope, and obstacle detection. Path planning optimized for energy efficiency.</p>
+    </div>
+    <div class="subsystem-card">
+      <p class="subsystem-name">POWER</p>
+      <h3 class="subsystem-title">Solar + Hydrogen Hybrid</h3>
+      <p class="subsystem-desc">Roof-mounted solar array for daily power. Hydrogen fuel cells for cloudy days and high-demand locomotion. Regenerative braking on downhill sections recovers energy through leg hydraulics.</p>
+    </div>
+    <div class="subsystem-card">
+      <p class="subsystem-name">WATER</p>
+      <h3 class="subsystem-title">Atmospheric + Recycled</h3>
+      <p class="subsystem-desc">Atmospheric water generation (AWG) extracts moisture from air. Multi-stage filtration for natural water sources. 80% greywater recycling. Target: 20L/day self-sufficient.</p>
+    </div>
+    <div class="subsystem-card">
+      <p class="subsystem-name">COMMS</p>
+      <h3 class="subsystem-title">Always Connected</h3>
+      <p class="subsystem-desc">Starlink terminal for global internet. Mesh networking with other ROAM units. Emergency beacon (EPIRB). Offline-first architecture — all critical systems work without connectivity.</p>
+    </div>
+    <div class="subsystem-card">
+      <p class="subsystem-name">AI BRAIN</p>
+      <h3 class="subsystem-title">AION Integration</h3>
+      <p class="subsystem-desc">Connected to AION ecosystem for memory, learning, and coordination. Pilgrim researches new routes. Laila handles voice commands. All decisions logged and learnable.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 04 — APPROACH -->
+<section class="fade-in" style="border-top: 1px solid rgba(200,169,110,0.06);">
+  <p class="section-label">04 — APPROACH</p>
+  <h2 class="section-title">Software first. Hardware when ready.</h2>
+  <p class="section-body">
+    We're not building a robot in a garage. We're building the intelligence that drives it —
+    terrain classification, gait optimization, energy management, path planning — all in
+    simulation. When the software can navigate any terrain in a digital twin, we build the body.
+  </p>
+
+  <div class="problem-grid" style="margin-top: 3rem;">
+    <div class="problem-stat">
+      <div class="stat-number" style="font-size: 1.8rem;">Phase 1</div>
+      <div class="stat-label">Concept validation. Research hexapod dynamics, terrain classification, and power systems. Build the knowledge base in AION memory. <strong>Current phase.</strong></div>
+    </div>
+    <div class="problem-stat">
+      <div class="stat-number" style="font-size: 1.8rem;">Phase 2</div>
+      <div class="stat-label">Simulation. ROS2 + Gazebo hexapod model. Train terrain navigation AI. Validate gait patterns and energy budgets in virtual environments.</div>
+    </div>
+    <div class="problem-stat">
+      <div class="stat-number" style="font-size: 1.8rem;">Phase 3</div>
+      <div class="stat-label">Scale model. Build a 1:4 scale hexapod to validate real-world locomotion, power consumption, and sensor integration.</div>
+    </div>
+    <div class="problem-stat">
+      <div class="stat-number" style="font-size: 1.8rem;">Phase 4</div>
+      <div class="stat-label">Full prototype. Purpose-built hexapod chassis with habitable cabin. First wilderness traversal.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div>
+    <span style="font-family: 'JetBrains Mono', monospace; letter-spacing: 0.2em; color: var(--accent);">ROAM</span>
+    <span style="margin-left: 1rem;">Project ROAM — 2026</span>
+  </div>
+  <div>
+    <a href="https://github.com/folvin/roam-habitat">GitHub</a>
+  </div>
+</footer>
+
+<!-- SCROLL ANIMATION -->
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
